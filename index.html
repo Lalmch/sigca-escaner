@@ -2,118 +2,99 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<meta name="viewport"
+      content="width=device-width, initial-scale=1.0">
 
 <title>Escáner QR - SIGCA</title>
 
-<!-- LIBRERÍA PARA ESCANEAR QR -->
-<script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+<script src="https://unpkg.com/html5-qrcode"></script>
 
 <style>
 
-* {
-  box-sizing: border-box;
-}
-
 body {
-  margin: 0;
-  padding: 20px;
-  font-family: Arial, sans-serif;
-  background: #f4f7fb;
-  text-align: center;
+    margin: 0;
+    padding: 20px;
+    font-family: Arial, sans-serif;
+    background: #f4f7fb;
+    text-align: center;
 }
 
 .contenedor {
-  width: 100%;
-  max-width: 650px;
-  margin: 30px auto;
-  background: white;
-  padding: 30px;
-  border-radius: 18px;
-  box-shadow: 0 5px 25px rgba(0,0,0,0.15);
+    max-width: 650px;
+    margin: 30px auto;
+    padding: 30px;
+    background: white;
+    border-radius: 18px;
+    box-shadow: 0 5px 25px rgba(0,0,0,.15);
 }
 
 h1 {
-  color: #234f9e;
-  margin-bottom: 15px;
-  font-size: 34px;
+    color: #234f9e;
+    font-size: 32px;
+    margin-bottom: 15px;
 }
 
-.estado {
-  font-size: 20px;
-  font-weight: bold;
-  margin: 15px 0;
-  min-height: 30px;
+#estado {
+    font-size: 20px;
+    font-weight: bold;
+    margin: 20px 0;
+    min-height: 30px;
 }
 
 #lector {
-  width: 100%;
-  max-width: 500px;
-  margin: 20px auto;
+    width: 100%;
+    max-width: 500px;
+    margin: 20px auto;
 }
 
 #lector video {
-  width: 100% !important;
-  border-radius: 15px;
+    width: 100% !important;
+    border-radius: 15px;
 }
 
-.resultado {
-  font-size: 22px;
-  font-weight: bold;
-  color: #16803c;
-  margin: 15px 0;
-  min-height: 30px;
+#resultado {
+    color: #16803c;
+    font-size: 22px;
+    font-weight: bold;
+    margin: 15px;
+    min-height: 30px;
 }
 
 .botones {
-  display: flex;
-  justify-content: center;
-  gap: 15px;
-  flex-wrap: wrap;
-  margin-top: 20px;
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+    flex-wrap: wrap;
 }
 
 button {
-  border: none;
-  border-radius: 10px;
-  padding: 16px 28px;
-  font-size: 18px;
-  font-weight: bold;
-  cursor: pointer;
+    border: none;
+    border-radius: 10px;
+    padding: 16px 28px;
+    font-size: 18px;
+    font-weight: bold;
+    cursor: pointer;
 }
 
-.btn-iniciar {
-  background: #1769e0;
-  color: white;
+#btnIniciar {
+    background: #1769e0;
+    color: white;
 }
 
-.btn-iniciar:hover {
-  background: #0d55bb;
+#btnIniciar:disabled {
+    opacity: .6;
+    cursor: default;
 }
 
-.btn-cancelar {
-  background: #e53935;
-  color: white;
+#btnCancelar {
+    background: #e53935;
+    color: white;
 }
 
-.btn-cancelar:hover {
-  background: #c62828;
-}
-
-.btn-activa {
-  background: #20a94b;
-  color: white;
-  cursor: default;
-}
-
-.oculto {
-  display: none !important;
-}
-
-.mensaje {
-  margin-top: 15px;
-  color: #666;
-  font-size: 16px;
+#mensaje {
+    margin-top: 18px;
+    color: #666;
 }
 
 </style>
@@ -123,356 +104,277 @@ button {
 
 <div class="contenedor">
 
-  <h1>📷 ESCÁNER QR</h1>
+    <h1>📷 ESCÁNER QR</h1>
 
-  <div id="estado" class="estado">
-    Presione "Iniciar cámara"
-  </div>
+    <div id="estado">
+        Presione "Iniciar cámara"
+    </div>
 
-  <!-- AQUÍ APARECERÁ LA CÁMARA -->
-  <div id="lector"></div>
+    <div id="lector"></div>
 
-  <div id="resultado" class="resultado"></div>
+    <div id="resultado"></div>
 
-  <div class="botones">
+    <div class="botones">
 
-    <button
-      id="btnIniciar"
-      class="btn-iniciar"
-      onclick="iniciarEscaner()">
-      📷 Iniciar cámara
-    </button>
+        <button id="btnIniciar" type="button">
+            📷 Iniciar cámara
+        </button>
 
-    <button
-      id="btnCancelar"
-      class="btn-cancelar"
-      onclick="cerrarEscaner()">
-      ❌ Cancelar
-    </button>
+        <button id="btnCancelar" type="button">
+            ❌ Cancelar
+        </button>
 
-  </div>
+    </div>
 
-  <div id="mensaje" class="mensaje">
-    Coloque el código QR frente a la cámara.
-  </div>
+    <div id="mensaje">
+        Coloque el código QR frente a la cámara.
+    </div>
 
 </div>
 
 
 <script>
 
-//==================================================
-// VARIABLES
-//==================================================
-
-let html5QrCode = null;
-let escaneando = false;
-let iniciando = false;
+let lectorQR = null;
+let camaraActiva = false;
+let procesando = false;
 
 
 //==================================================
 // ELEMENTOS
 //==================================================
 
-const estado = document.getElementById("estado");
-const resultado = document.getElementById("resultado");
-const mensaje = document.getElementById("mensaje");
-const btnIniciar = document.getElementById("btnIniciar");
-const btnCancelar = document.getElementById("btnCancelar");
+const estado =
+    document.getElementById("estado");
+
+const resultado =
+    document.getElementById("resultado");
+
+const mensaje =
+    document.getElementById("mensaje");
+
+const btnIniciar =
+    document.getElementById("btnIniciar");
+
+const btnCancelar =
+    document.getElementById("btnCancelar");
 
 
 //==================================================
-// INICIAR ESCÁNER
+// BOTÓN INICIAR
 //==================================================
 
-async function iniciarEscaner() {
+btnIniciar.addEventListener(
+    "click",
+    iniciarCamara
+);
 
-  // Evitar doble clic
-  if (escaneando || iniciando) {
-    return;
-  }
 
-  iniciando = true;
+//==================================================
+// BOTÓN CANCELAR
+//==================================================
 
-  btnIniciar.disabled = true;
+btnCancelar.addEventListener(
+    "click",
+    cerrarCamara
+);
 
-  estado.textContent = "⏳ Solicitando acceso a la cámara...";
-  resultado.textContent = "";
-  mensaje.textContent = "";
 
-  try {
+//==================================================
+// INICIAR CÁMARA
+//==================================================
 
-    // Crear lector
-    if (!html5QrCode) {
-      html5QrCode = new Html5Qrcode("lector");
+async function iniciarCamara() {
+
+    console.log("BOTÓN INICIAR PRESIONADO");
+
+    if (camaraActiva) {
+        return;
     }
-
-
-    //==============================================
-    // OBTENER CÁMARAS
-    //==============================================
-
-    const cameras = await Html5Qrcode.getCameras();
-
-
-    if (!cameras || cameras.length === 0) {
-
-      throw new Error(
-        "No se encontró ninguna cámara disponible."
-      );
-
-    }
-
-
-    console.log("Cámaras encontradas:", cameras);
-
-
-    //==============================================
-    // BUSCAR CÁMARA TRASERA
-    //==============================================
-
-    let camaraSeleccionada = cameras.find(function(camara) {
-
-      const nombre =
-        (camara.label || "").toLowerCase();
-
-      return (
-        nombre.includes("back") ||
-        nombre.includes("rear") ||
-        nombre.includes("trasera") ||
-        nombre.includes("environment")
-      );
-
-    });
-
-
-    // Si no encuentra trasera, usar primera cámara
-    if (!camaraSeleccionada) {
-      camaraSeleccionada = cameras[0];
-    }
-
-
-    console.log(
-      "Cámara seleccionada:",
-      camaraSeleccionada
-    );
-
-
-    //==============================================
-    // CONFIGURACIÓN
-    //==============================================
-
-    const configuracion = {
-
-      fps: 10,
-
-      qrbox: function(viewfinderWidth, viewfinderHeight) {
-
-        const minEdge = Math.min(
-          viewfinderWidth,
-          viewfinderHeight
-        );
-
-        const tamaño = Math.floor(
-          minEdge * 0.70
-        );
-
-        return {
-          width: tamaño,
-          height: tamaño
-        };
-
-      },
-
-      aspectRatio: 1.0
-
-    };
-
-
-    //==============================================
-    // INICIAR CÁMARA
-    //==============================================
-
-    await html5QrCode.start(
-
-      camaraSeleccionada.id,
-
-      configuracion,
-
-      function(decodedText, decodedResult) {
-
-        console.log(
-          "QR detectado:",
-          decodedText
-        );
-
-        procesarQR(decodedText);
-
-      },
-
-      function(errorMessage) {
-
-        // No mostrar errores normales
-        // mientras busca el código QR.
-
-      }
-
-    );
-
-
-    //==============================================
-    // CÁMARA ACTIVADA
-    //==============================================
-
-    escaneando = true;
-    iniciando = false;
 
     estado.textContent =
-      "🟢 Cámara activa. Muestre el código QR.";
+        "⏳ Iniciando cámara...";
 
     resultado.textContent = "";
 
     mensaje.textContent =
-      "Coloque el código QR frente a la cámara.";
-
-    // Cambiar botón
-    btnIniciar.textContent =
-      "🟢 Cámara activa";
-
-    btnIniciar.classList.remove(
-      "btn-iniciar"
-    );
-
-    btnIniciar.classList.add(
-      "btn-activa"
-    );
+        "Solicitando permiso para utilizar la cámara...";
 
     btnIniciar.disabled = true;
 
 
-    console.log("CÁMARA INICIADA CORRECTAMENTE");
+    try {
 
-  }
+        // Crear lector solamente una vez
 
-  catch (error) {
+        if (!lectorQR) {
 
-    console.error(
-      "Error iniciando cámara:",
-      error
-    );
+            lectorQR =
+                new Html5Qrcode("lector");
 
-    escaneando = false;
-    iniciando = false;
-
-    btnIniciar.disabled = false;
-
-    estado.textContent =
-      "❌ No se pudo iniciar la cámara.";
-
-    resultado.textContent =
-      obtenerMensajeError(error);
-
-    mensaje.textContent =
-      "Revise el permiso de cámara e inténtelo nuevamente.";
-
-  }
-
-}
+        }
 
 
-//==================================================
-// PROCESAR QR
-//==================================================
+        //==========================================
+        // CONFIGURACIÓN
+        //==========================================
 
-async function procesarQR(decodedText) {
+        const configuracion = {
 
-  // Evitar leer el mismo QR varias veces
-  if (!escaneando) {
-    return;
-  }
+            fps: 10,
 
-  escaneando = false;
+            qrbox: {
+                width: 250,
+                height: 250
+            },
 
-  console.log(
-    "Código QR:",
-    decodedText
-  );
+            aspectRatio: 1.0
 
-
-  //==============================================
-  // MOSTRAR RESULTADO
-  //==============================================
-
-  estado.textContent =
-    "✅ Código QR leído";
-
-  resultado.textContent =
-    "DNI: " + decodedText;
-
-  mensaje.textContent =
-    "Enviando DNI a SIGCA...";
+        };
 
 
-  //==============================================
-  // DETENER CÁMARA
-  //==============================================
+        //==========================================
+        // INICIAR CÁMARA TRASERA
+        //==========================================
 
-  await detenerEscaner();
+        await lectorQR.start(
 
+            {
+                facingMode: "environment"
+            },
 
-  //==============================================
-  // ENVIAR DNI
-  //==============================================
+            configuracion,
 
-  enviarDNI(decodedText);
+            function(codigo) {
 
-}
+                codigoDetectado(codigo);
 
+            },
 
-//==================================================
-// DETENER ESCÁNER
-//==================================================
+            function(error) {
 
-async function detenerEscaner() {
+                // Errores normales de lectura.
+                // No mostramos nada.
 
-  if (!html5QrCode) {
-    return;
-  }
+            }
 
-  try {
-
-    const estadoActual =
-      html5QrCode.getState();
-
-    console.log(
-      "Estado lector:",
-      estadoActual
-    );
+        );
 
 
-    // 2 = SCANNING
-    // Solo detener si realmente está escaneando
+        //==========================================
+        // CÁMARA ACTIVA
+        //==========================================
 
-    if (estadoActual === 2) {
+        camaraActiva = true;
 
-      await html5QrCode.stop();
+        estado.textContent =
+            "🟢 Cámara activa. Muestre el código QR.";
 
-      console.log(
-        "Cámara detenida correctamente"
-      );
+        mensaje.textContent =
+            "Coloque el código QR frente a la cámara.";
+
+        btnIniciar.textContent =
+            "🟢 Cámara activa";
+
+
+        console.log(
+            "CÁMARA INICIADA CORRECTAMENTE"
+        );
 
     }
 
-  }
+    catch(error) {
 
-  catch (error) {
+        console.error(
+            "ERROR DE CÁMARA:",
+            error
+        );
+
+        camaraActiva = false;
+
+        btnIniciar.disabled = false;
+
+        btnIniciar.textContent =
+            "📷 Iniciar cámara";
+
+        estado.textContent =
+            "❌ No se pudo iniciar la cámara.";
+
+        mensaje.textContent =
+            error.message ||
+            "Verifique el permiso de cámara.";
+
+    }
+
+}
+
+
+//==================================================
+// QR DETECTADO
+//==================================================
+
+async function codigoDetectado(codigo) {
+
+    if (procesando) {
+        return;
+    }
+
+    procesando = true;
 
     console.log(
-      "Error al detener cámara:",
-      error
+        "QR DETECTADO:",
+        codigo
     );
 
-  }
+
+    estado.textContent =
+        "✅ Código QR leído";
+
+    resultado.textContent =
+        "DNI: " + codigo;
+
+    mensaje.textContent =
+        "Enviando DNI a SIGCA...";
+
+
+    await detenerCamara();
+
+
+    enviarDNI(codigo);
+
+}
+
+
+//==================================================
+// DETENER CÁMARA
+//==================================================
+
+async function detenerCamara() {
+
+    if (!lectorQR) {
+        return;
+    }
+
+    try {
+
+        if (camaraActiva) {
+
+            await lectorQR.stop();
+
+        }
+
+    }
+
+    catch(error) {
+
+        console.log(
+            "Error deteniendo cámara:",
+            error
+        );
+
+    }
+
+    camaraActiva = false;
 
 }
 
@@ -483,155 +385,88 @@ async function detenerEscaner() {
 
 function enviarDNI(dni) {
 
-  console.log(
-    "Enviando DNI:",
-    dni
-  );
+    console.log(
+        "ENVIANDO DNI:",
+        dni
+    );
 
 
-  //==============================================
-  // SI FUE ABIERTO DESDE SIGCA
-  //==============================================
+    //==============================================
+    // VENTANA PRINCIPAL SIGCA
+    //==============================================
 
-  if (
-    window.opener &&
-    !window.opener.closed
-  ) {
+    if (
+        window.opener &&
+        !window.opener.closed
+    ) {
 
-    try {
+        window.opener.postMessage(
 
-      window.opener.postMessage(
+            {
+                tipo: "SIGCA_QR",
+                dni: dni
+            },
 
-        {
-          tipo: "SIGCA_QR",
-          dni: dni
+            "*"
+
+        );
+
+
+        estado.textContent =
+            "✅ DNI enviado a SIGCA";
+
+        mensaje.textContent =
+            "Regresando a SIGCA...";
+
+
+        setTimeout(
+            function() {
+
+                window.close();
+
+            },
+            1000
+        );
+
+        return;
+
+    }
+
+
+    //==============================================
+    // SI SE ABRIÓ DIRECTAMENTE
+    //==============================================
+
+    estado.textContent =
+        "✅ Escaneo completado";
+
+    mensaje.textContent =
+        "DNI leído correctamente.";
+
+}
+
+
+//==================================================
+// CERRAR
+//==================================================
+
+async function cerrarCamara() {
+
+    procesando = true;
+
+    estado.textContent =
+        "Cerrando cámara...";
+
+    await detenerCamara();
+
+    setTimeout(
+        function() {
+
+            window.close();
+
         },
-
-        "*"
-
-      );
-
-
-      estado.textContent =
-        "✅ DNI enviado a SIGCA";
-
-      mensaje.textContent =
-        "Regresando a SIGCA...";
-
-
-      setTimeout(function() {
-
-        window.close();
-
-      }, 1000);
-
-
-      return;
-
-    }
-
-    catch (error) {
-
-      console.error(
-        "Error enviando DNI:",
-        error
-      );
-
-    }
-
-  }
-
-
-  //==============================================
-  // SI SE ABRIÓ DIRECTAMENTE
-  //==============================================
-
-  estado.textContent =
-    "✅ Escaneo completado";
-
-  mensaje.textContent =
-    "DNI leído: " + dni;
-
-}
-
-
-//==================================================
-// CERRAR ESCÁNER
-//==================================================
-
-async function cerrarEscaner() {
-
-  escaneando = false;
-  iniciando = false;
-
-  estado.textContent =
-    "Cerrando cámara...";
-
-
-  await detenerEscaner();
-
-
-  setTimeout(function() {
-
-    window.close();
-
-  }, 500);
-
-}
-
-
-//==================================================
-// MENSAJE DE ERROR
-//==================================================
-
-function obtenerMensajeError(error) {
-
-  if (!error) {
-    return "Error desconocido.";
-  }
-
-  const mensajeError =
-    error.message ||
-    String(error);
-
-
-  if (
-    mensajeError.includes("NotAllowedError")
-  ) {
-
-    return "Permiso de cámara denegado.";
-
-  }
-
-
-  if (
-    mensajeError.includes("NotFoundError")
-  ) {
-
-    return "No se encontró una cámara.";
-
-  }
-
-
-  if (
-    mensajeError.includes("NotReadableError")
-  ) {
-
-    return "La cámara está siendo utilizada por otro programa.";
-
-  }
-
-
-  if (
-    mensajeError.includes("AbortError")
-  ) {
-
-    return "El navegador canceló el acceso a la cámara. Intente nuevamente.";
-
-  }
-
-
-  return mensajeError;
+        500
+    );
 
 }
 
