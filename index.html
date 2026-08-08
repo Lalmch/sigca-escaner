@@ -112,121 +112,205 @@ let escaneando = false;
 
 
 //==================================================
+// CONTROL DEL ESCÁNER
+//==================================================
+
+let iniciandoEscaner = false;
+
+
+//==================================================
 // INICIAR ESCÁNER
 //==================================================
 
 function iniciarEscaner() {
 
-  if (escaneando) {
+  // Evitar dos procesos de cámara al mismo tiempo
+  if (escaneando || iniciandoEscaner) {
     return;
   }
 
+  iniciandoEscaner = true;
+
   document.getElementById("estado").textContent =
-    "Solicitando acceso a la cámara...";
+    "📷 Iniciando cámara...";
 
   document.getElementById("resultado").textContent = "";
 
-  html5QrCode = new Html5Qrcode("lector");
+  // Si existe una cámara anterior, detenerla primero
+  if (html5QrCode) {
 
-  Html5Qrcode.getCameras()
-    .then(function(cameras) {
+    try {
 
-      if (!cameras || cameras.length === 0) {
+      const estadoCamara = html5QrCode.getState();
 
-        document.getElementById("estado").textContent =
-          "❌ No se encontró ninguna cámara.";
+      if (
+        estadoCamara === Html5QrcodeScannerState.SCANNING ||
+        estadoCamara === Html5QrcodeScannerState.PAUSED
+      ) {
+
+        html5QrCode.stop()
+          .then(function() {
+
+            html5QrCode = null;
+            iniciarCamaraNueva();
+
+          })
+          .catch(function() {
+
+            html5QrCode = null;
+            iniciarCamaraNueva();
+
+          });
 
         return;
       }
 
-      // Buscar cámara trasera
-      let camaraTrasera = cameras.find(function(camara) {
+    } catch (e) {
 
-        const nombre =
-          (camara.label || "").toLowerCase();
+      html5QrCode = null;
 
-        return (
-          nombre.includes("back") ||
-          nombre.includes("rear") ||
-          nombre.includes("trasera")
-        );
+    }
+  }
 
-      });
-
-      const camara =
-        camaraTrasera || cameras[cameras.length - 1];
+  iniciarCamaraNueva();
+}
 
 
-      escaneando = true;
+//==================================================
+// INICIAR CÁMARA NUEVA
+//==================================================
+
+function iniciarCamaraNueva() {
+
+  try {
+
+    html5QrCode = new Html5Qrcode("lector");
+
+  } catch (error) {
+
+    iniciandoEscaner = false;
+
+    document.getElementById("estado").textContent =
+      "❌ No se pudo preparar la cámara.";
+
+    document.getElementById("resultado").textContent =
+      error.message || error;
+
+    return;
+  }
+
+
+  // Usar directamente la cámara trasera
+  // Esto evita problemas con getCameras()
+  html5QrCode.start(
+
+    {
+      facingMode: {
+        exact: "environment"
+      }
+    },
+
+    {
+      fps: 10,
+
+      qrbox: {
+        width: 250,
+        height: 250
+      },
+
+      aspectRatio: 1.0
+
+    },
+
+    function(decodedText) {
+
+      //==========================================
+      // QR DETECTADO
+      //==========================================
+
+      if (!escaneando) {
+        return;
+      }
+
+      escaneando = false;
+      iniciandoEscaner = false;
 
       document.getElementById("estado").textContent =
-        "🟢 Cámara activa. Muestre el código QR.";
+        "✅ Código QR leído";
 
+      document.getElementById("resultado").textContent =
+        "DNI: " + decodedText;
 
-      return html5QrCode.start(
+      detenerEscaner();
 
-        camara.id,
+      enviarDNI(decodedText);
 
-        {
-          fps: 10,
+    },
 
-          qrbox: {
-            width: 250,
-            height: 250
-          },
+    function(errorMessage) {
 
-          aspectRatio: 1.0
+      // No mostrar errores normales
+      // mientras busca el código QR
 
-        },
+    }
 
-        function(decodedText) {
+  )
 
-          //==========================================
-          // QR DETECTADO
-          //==========================================
+  .then(function() {
 
-          if (!escaneando) {
-            return;
-          }
+    // IMPORTANTE:
+    // Solo aquí consideramos que la cámara
+    // realmente está funcionando.
 
-          escaneando = false;
+    escaneando = true;
+    iniciandoEscaner = false;
 
-          document.getElementById("estado").textContent =
-            "✅ Código QR leído";
+    document.getElementById("estado").textContent =
+      "🟢 Cámara activa. Muestre el código QR.";
 
-          document.getElementById("resultado").textContent =
-            "DNI: " + decodedText;
+  })
 
-          detenerEscaner();
+  .catch(function(error) {
 
-          enviarDNI(decodedText);
+    console.error(
+      "Error iniciando cámara:",
+      error
+    );
 
-        },
+    escaneando = false;
+    iniciandoEscaner = false;
 
-        function(errorMessage) {
+    document.getElementById("estado").textContent =
+      "❌ No se pudo acceder a la cámara.";
 
-          // Errores normales mientras busca el QR.
-          // No mostramos nada para evitar mensajes constantes.
+    document.getElementById("resultado").textContent =
+      error.message || error;
+
+    // Liberar la instancia
+    try {
+
+      if (html5QrCode) {
+
+        const estadoCamara =
+          html5QrCode.getState();
+
+        if (
+          estadoCamara === Html5QrcodeScannerState.SCANNING ||
+          estadoCamara === Html5QrcodeScannerState.PAUSED
+        ) {
+
+          html5QrCode.stop()
+            .catch(function() {});
 
         }
 
-      );
+      }
 
-    })
+    } catch (e) {}
 
-    .catch(function(error) {
+    html5QrCode = null;
 
-      console.error(error);
-
-      escaneando = false;
-
-      document.getElementById("estado").textContent =
-        "❌ No se pudo acceder a la cámara.";
-
-      document.getElementById("resultado").textContent =
-        error.message || error;
-
-    });
+  });
 
 }
 
@@ -237,21 +321,55 @@ function iniciarEscaner() {
 
 function detenerEscaner() {
 
+  escaneando = false;
+
   if (!html5QrCode) {
-    return;
+    return Promise.resolve();
   }
 
-  html5QrCode.stop()
-    .then(function() {
+  try {
 
-      console.log("Cámara detenida");
+    const estadoCamara =
+      html5QrCode.getState();
 
-    })
-    .catch(function(error) {
+    if (
+      estadoCamara === Html5QrcodeScannerState.SCANNING ||
+      estadoCamara === Html5QrcodeScannerState.PAUSED
+    ) {
 
-      console.log("Error al detener cámara:", error);
+      return html5QrCode.stop()
+        .then(function() {
 
-    });
+          console.log("Cámara detenida");
+
+          html5QrCode = null;
+
+        })
+        .catch(function(error) {
+
+          console.log(
+            "Error al detener cámara:",
+            error
+          );
+
+          html5QrCode = null;
+
+        });
+
+    }
+
+  } catch (error) {
+
+    console.log(
+      "Error comprobando cámara:",
+      error
+    );
+
+  }
+
+  html5QrCode = null;
+
+  return Promise.resolve();
 
 }
 
@@ -294,6 +412,7 @@ function enviarDNI(dni) {
 
 
   // Si no fue abierto desde SIGCA
+
   document.getElementById("estado").textContent =
     "⚠️ Escaneo completado";
 
@@ -307,18 +426,17 @@ function enviarDNI(dni) {
 function cerrarEscaner() {
 
   escaneando = false;
+  iniciandoEscaner = false;
 
-  detenerEscaner();
+  detenerEscaner()
+    .finally(function() {
 
-  setTimeout(function() {
+      setTimeout(function() {
 
-    window.close();
+        window.close();
 
-  }, 500);
+      }, 300);
+
+    });
 
 }
-
-</script>
-
-</body>
-</html>
