@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>Escáner QR - SIGCA</title>
+
+  <script src="https://raw.githack.com/schmich/instascan-builds/master/instascan.min.js"></script>
+
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #eef3f8;
+      text-align: center;
+    }
+
+    .contenedor {
+      width: 100%;
+      max-width: 600px;
+      margin: auto;
+      padding: 20px;
+      box-sizing: border-box;
+    }
+
+    h1 {
+      color: #0D47A1;
+    }
+
+    #preview {
+      width: 100%;
+      max-width: 500px;
+      background: #000;
+      border: 4px solid #1565C0;
+      border-radius: 15px;
+      display: block;
+      margin: 20px auto;
+    }
+
+    #estado {
+      font-weight: bold;
+      margin: 15px;
+      color: #333;
+    }
+
+    #resultado {
+      font-size: 20px;
+      font-weight: bold;
+      color: #0D47A1;
+      margin: 15px;
+    }
+
+    button {
+      border: none;
+      border-radius: 10px;
+      padding: 14px 25px;
+      font-size: 16px;
+      font-weight: bold;
+      margin: 5px;
+      cursor: pointer;
+    }
+
+    .btnIniciar {
+      background: #1565C0;
+      color: white;
+    }
+
+    .btnCerrar {
+      background: #d32f2f;
+      color: white;
+    }
+  </style>
+</head>
+
+<body>
+
+<div class="contenedor">
+
+  <h1>📷 ESCÁNER QR</h1>
+
+  <div id="estado">
+    Presione "Iniciar cámara"
+  </div>
+
+  <video id="preview" playsinline></video>
+
+  <div id="resultado"></div>
+
+  <button
+    class="btnIniciar"
+    onclick="iniciarEscaner()">
+    📷 Iniciar cámara
+  </button>
+
+  <button
+    class="btnCerrar"
+    onclick="cerrarEscaner()">
+    ❌ Cancelar
+  </button>
+
+</div>
+
+<script>
+
+let scanner = null;
+let escaneando = false;
+
+
+//==================================================
+// INICIAR ESCÁNER
+//==================================================
+
+function iniciarEscaner() {
+
+  if (escaneando) {
+    return;
+  }
+
+  const video =
+    document.getElementById("preview");
+
+  document.getElementById("estado").textContent =
+    "Solicitando acceso a la cámara...";
+
+  scanner = new Instascan.Scanner({
+
+    video: video,
+    continuous: true,
+    mirror: false,
+    captureImage: false,
+    backgroundScan: false,
+    refractoryPeriod: 3000,
+    scanPeriod: 1
+
+  });
+
+
+  //================================================
+  // QR DETECTADO
+  //================================================
+
+  scanner.addListener(
+    "scan",
+    function(content) {
+
+      if (!escaneando) {
+        return;
+      }
+
+      escaneando = false;
+
+      document.getElementById("estado").textContent =
+        "✅ Código QR leído";
+
+      document.getElementById("resultado").textContent =
+        "DNI: " + content;
+
+      detenerEscaner();
+
+      enviarDNI(content);
+
+    }
+  );
+
+
+  //================================================
+  // BUSCAR CÁMARAS
+  //================================================
+
+  Instascan.Camera.getCameras()
+
+    .then(function(cameras) {
+
+      if (!cameras || cameras.length === 0) {
+
+        escaneando = false;
+
+        document.getElementById("estado").textContent =
+          "❌ No se encontró ninguna cámara.";
+
+        return;
+      }
+
+
+      // Buscar cámara trasera
+
+      let camaraTrasera =
+        cameras.find(function(camara) {
+
+          const nombre =
+            (camara.name || "").toLowerCase();
+
+          return (
+            nombre.includes("back") ||
+            nombre.includes("rear") ||
+            nombre.includes("trasera")
+          );
+
+        });
+
+
+      const camara =
+        camaraTrasera || cameras[0];
+
+
+      escaneando = true;
+
+      document.getElementById("estado").textContent =
+        "🟢 Cámara activa. Muestre el código QR.";
+
+
+      return scanner.start(camara);
+
+    })
+
+    .catch(function(error) {
+
+      console.error(error);
+
+      escaneando = false;
+
+      document.getElementById("estado").textContent =
+        "❌ No se pudo acceder a la cámara.";
+
+      document.getElementById("resultado").textContent =
+        error.message || error;
+
+    });
+
+}
+
+
+//==================================================
+// DETENER
+//==================================================
+
+function detenerEscaner() {
+
+  if (!scanner) {
+    return;
+  }
+
+  scanner.stop()
+    .catch(function(error) {
+
+      console.log(error);
+
+    });
+
+}
+
+
+//==================================================
+// ENVIAR DNI A SIGCA
+//==================================================
+
+function enviarDNI(dni) {
+
+  if (
+    window.opener &&
+    !window.opener.closed
+  ) {
+
+    window.opener.postMessage(
+
+      {
+        tipo: "SIGCA_QR",
+        dni: dni
+      },
+
+      "*"
+
+    );
+
+
+    setTimeout(function() {
+
+      window.close();
+
+    }, 700);
+
+    return;
+  }
+
+
+  document.getElementById("estado").textContent =
+    "⚠️ No se encontró SIGCA.";
+
+}
+
+
+//==================================================
+// CERRAR
+//==================================================
+
+function cerrarEscaner() {
+
+  escaneando = false;
+
+  detenerEscaner();
+
+  setTimeout(function() {
+
+    window.close();
+
+  }, 300);
+
+}
+
+</script>
+
+</body>
+</html>
