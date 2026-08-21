@@ -503,111 +503,92 @@ async function detenerCamara() {
 
 }
 
-
 //==================================================
 // ENVIAR DNI A SIGCA
 //==================================================
 
 function enviarDNI(dni) {
 
+    dni = String(dni).trim();
 
+    console.log("================================");
+    console.log("📱 DNI LEÍDO:", dni);
+    console.log("================================");
+
+    console.log("window.opener:", window.opener);
     console.log(
-        "ENVIANDO DNI A SIGCA:",
-        dni
+        "window.opener existe:",
+        !!window.opener
     );
 
+    if (window.opener) {
 
-    //==============================================
-    // COMPROBAR VENTANA PRINCIPAL
-    //==============================================
-
-    if (
-        window.opener &&
-        !window.opener.closed
-    ) {
-
+        console.log("✅ EXISTE WINDOW.OPENER");
 
         try {
 
-
             window.opener.postMessage(
-
                 {
-
                     tipo: "SIGCA_QR",
-
-                    dni: String(dni).trim()
-
+                    dni: dni
                 },
-
                 "*"
-
             );
-
 
             console.log(
-                "DNI ENVIADO CORRECTAMENTE"
+                "✅ POSTMESSAGE ENVIADO:",
+                dni
             );
-
 
             estado.textContent =
                 "✅ DNI enviado a SIGCA";
 
+            resultado.textContent =
+                "DNI: " + dni;
 
             mensaje.textContent =
                 "Regresando a SIGCA...";
 
+            setTimeout(function() {
 
-            //======================================
-            // CERRAR DESPUÉS DE ENVIAR
-            //======================================
+                window.close();
 
-            setTimeout(
-
-                function() {
-
-                    window.close();
-
-                },
-
-                1200
-
-            );
-
+            }, 1500);
 
             return;
 
-
-        }
-
-        catch(error) {
-
+        } catch (error) {
 
             console.error(
-                "ERROR ENVIANDO DNI:",
+                "❌ ERROR:",
                 error
             );
 
+            estado.textContent =
+                "❌ Error al enviar a SIGCA";
 
+            mensaje.textContent =
+                error.message;
+
+            return;
         }
-
     }
 
+    //==============================================
+    // NO HAY VENTANA PADRE
+    //==============================================
 
-    //==============================================
-    // SI NO EXISTE VENTANA PRINCIPAL
-    //==============================================
+    console.error(
+        "❌ WINDOW.OPENER NO EXISTE"
+    );
 
     estado.textContent =
-        "⚠️ Escaneo completado";
-
+        "⚠️ SIGCA no está conectado";
 
     mensaje.textContent =
-        "DNI leído: " + dni;
-
+        "El escáner no detectó la ventana de SIGCA.";
 
 }
-
 
 //==================================================
 // CERRAR ESCÁNER
